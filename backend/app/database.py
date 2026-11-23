@@ -1,4 +1,5 @@
 from collections.abc import Iterator
+from pathlib import Path
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
@@ -15,7 +16,9 @@ SessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False
 def init_db() -> None:
     settings.upload_dir.mkdir(parents=True, exist_ok=True)
     if settings.database_url.startswith("sqlite"):
-        settings.upload_dir.parent.mkdir(parents=True, exist_ok=True)
+        sqlite_path = settings.database_url.removeprefix("sqlite:///")
+        if sqlite_path not in ("", ":memory:"):
+            Path(sqlite_path).expanduser().parent.mkdir(parents=True, exist_ok=True)
     Base.metadata.create_all(bind=engine)
 
 
