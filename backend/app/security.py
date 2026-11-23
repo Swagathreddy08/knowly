@@ -16,14 +16,22 @@ from .models import Role, User
 
 
 bearer = HTTPBearer(auto_error=True)
+PBKDF2_ITERATIONS = 600_000
 
 
 def hash_password(password: str) -> str:
     if len(password.encode("utf-8")) > 1024:
         raise ValueError("Password is too long")
     salt = secrets.token_bytes(16)
-    digest = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, 600_000)
-    return f"pbkdf2_sha256$600000${base64.b64encode(salt).decode()}${base64.b64encode(digest).decode()}"
+    digest = hashlib.pbkdf2_hmac(
+        "sha256",
+        password.encode("utf-8"),
+        salt,
+        PBKDF2_ITERATIONS,
+    )
+    salt_text = base64.b64encode(salt).decode("ascii")
+    digest_text = base64.b64encode(digest).decode("ascii")
+    return f"pbkdf2_sha256${PBKDF2_ITERATIONS}${salt_text}${digest_text}"
 
 
 def verify_password(password: str, encoded: str) -> bool:

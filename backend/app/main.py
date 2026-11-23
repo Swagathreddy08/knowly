@@ -35,8 +35,7 @@ from .security import create_access_token, get_current_user, hash_password, requ
 
 
 @asynccontextmanager
-async def lifespan(application: FastAPI):
-    del application  # Database setup is intentionally driven by application startup.
+async def lifespan(_application: FastAPI):
     init_db()
     yield
 
