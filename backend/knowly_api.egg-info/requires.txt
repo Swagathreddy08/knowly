@@ -1,0 +1,16 @@
+fastapi<1,>=0.115
+uvicorn[standard]<1,>=0.32
+sqlalchemy<3,>=2.0
+pydantic-settings<3,>=2.6
+python-jose[cryptography]<4,>=3.3
+passlib[bcrypt]<2,>=1.7
+python-multipart<1,>=0.0.17
+httpx<1,>=0.28
+email-validator<3,>=2.2
+python-docx<2,>=1.1
+pypdf<6,>=5.1
+psycopg[binary]<4,>=3.2
+
+[test]
+pytest<9,>=8
+pytest-cov<7,>=6

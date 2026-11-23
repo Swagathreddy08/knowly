@@ -1,90 +1,135 @@
-"# Knowly
+# Knowly
 
-## Enterprise AI Knowledge and Research Assistant
+Enterprise AI knowledge and research assistant built with Next.js, FastAPI, PostgreSQL, Redis, and optional external AI/search providers.
 
-Knowly is an AI-powered knowledge management platform that helps employees find accurate information across organizational documents. Users can upload documents and ask questions in natural language instead of relying on keyword-based search.
+## What it provides
 
-## Overview
+- Tenant-isolated document workspaces
+- JWT authentication and administrator role controls
+- PDF, DOCX, CSV, and text upload
+- Local text extraction plus Apache Tika fallback
+- 512-token-class document chunking
+- Tenant-filtered hybrid-style BM25 scoring and optional Cohere reranking
+- Grounded answers with source citations
+- Optional OpenAI generation
+- Docker Compose deployment with PostgreSQL, Redis, Tika, Next.js, FastAPI, and Nginx
+- Health endpoint, security headers, upload limits, CI, and automated API tests
 
-Organizations often store large amounts of information in documents that are distributed across teams and formats. Finding relevant answers from that knowledge is usually slow and difficult, while traditional keyword search does not always understand the user's intent.
+## Architecture
 
-Knowly addresses this problem by combining document processing, semantic and keyword retrieval, reranking, and generative AI. It provides source-grounded responses so users can trace answers back to the documents that support them.
+```text
+Browser
+  |
+  v
+Nginx
+  +--> Next.js web application
+  +--> FastAPI API
+        +--> PostgreSQL metadata and document chunks
+        +--> Apache Tika / local extractors
+        +--> Redis / background task infrastructure
+        +--> Optional Cohere reranking
+        +--> Optional OpenAI generation
+```
 
-## System Architecture
+## Run locally
 
-The application is divided into frontend, backend, AI processing, and data storage layers.
+Requirements:
 
-- **Frontend:** Next.js
-- **Backend:** Python and FastAPI
-- **AI orchestration:** LangChain
-- **Structured data and metadata:** PostgreSQL
-- **Semantic search:** Pinecone
-- **Keyword search:** Elasticsearch
-- **Background processing and caching:** Redis
-- **Asynchronous task processing:** Celery
+- Docker Desktop
+- Python 3.12+ and Node.js 22+ for local development
 
-Each technology is responsible for a specific part of the platform rather than forcing a single database or service to handle every workload.
+Create environment configuration:
 
-## Document Processing Pipeline
+```powershell
+Copy-Item .env.example .env
+```
 
-Knowly supports PDF, DOCX, and CSV document uploads.
+Set a secret of at least 32 characters in `.env`:
 
-1. Apache Tika extracts text and content from uploaded files.
-2. Documents are split into chunks of approximately 512 tokens.
-3. Chunking keeps content within model context limits and makes individual sections easier to retrieve.
-4. Celery processes documents asynchronously in the background.
-5. Redis coordinates the background processing and caching infrastructure.
+```text
+JWT_SECRET=replace-with-a-long-random-secret
+```
 
-The pipeline achieved approximately **99.5% task success**.
+Start the production-style stack:
 
-## Advanced RAG Implementation
+```powershell
+docker compose up --build
+```
 
-Knowly uses a hybrid Retrieval-Augmented Generation (RAG) workflow:
+Open:
 
-1. The backend receives a user's natural-language question.
-2. The query is searched using:
-   - **BM25 keyword retrieval** through Elasticsearch
-   - **Semantic similarity search** through Pinecone embeddings
-3. Results from both retrieval methods are combined.
-4. Cohere reranking orders the candidate passages by relevance to the original query.
-5. LangChain passes the most relevant context to the language model.
-6. The model generates an answer grounded in the retrieved documents.
-7. Source citations identify the documents that support the generated answer.
+- Application: http://localhost
+- API documentation: http://localhost:8000/docs
+- Direct API health: http://localhost:8000/health
 
-Hybrid retrieval improves results for both natural-language queries and questions containing exact technical terms or identifiers. Citations also help users verify AI-generated responses.
+## Local development
 
-## Security and Multi-Tenancy
+Backend:
 
-Knowly is designed for isolated access across organizations and teams.
+```powershell
+cd backend
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install ".[test]"
+Copy-Item ..\.env.example ..\.env
+uvicorn app.main:app --reload
+```
 
-- Every user belongs to an authorized tenant.
-- Role-Based Access Control (RBAC) controls user permissions.
-- Tenant authorization is enforced in document access and retrieval workflows.
-- Retrieved context is restricted to data belonging to the user's tenant.
+The backend uses SQLite when `DATABASE_URL` is a SQLite URL. It uses PostgreSQL in Docker by default.
 
-Tenant isolation is implemented as a core architectural requirement instead of relying only on frontend authorization checks.
+Frontend:
 
-## Deployment and DevOps
+```powershell
+cd frontend
+npm install
+npm run dev
+```
 
-The platform is deployed using:
+## API
 
-- AWS EC2
-- Docker containers
-- Nginx reverse proxy
-- GitHub Actions CI/CD
+| Method | Route | Description |
+|---|---|---|
+| `GET` | `/health` | Service health |
+| `POST` | `/auth/register` | Create tenant and administrator |
+| `POST` | `/auth/login` | Obtain JWT |
+| `POST` | `/documents` | Upload and queue document processing |
+| `GET` | `/documents` | List tenant documents |
+| `GET` | `/documents/{id}` | Read tenant document |
+| `DELETE` | `/documents/{id}` | Delete document as administrator |
+| `POST` | `/chat/query` | Ask a grounded question |
 
-This setup automates application updates and standardizes deployment. The production environment achieved approximately **99.9% uptime**.
+Send authenticated requests using `Authorization: Bearer <token>`.
 
-## Engineering Challenges
+## Security
 
-### Relevant retrieval from large documents
+- JWTs are signed and contain tenant identity and role
+- Database queries filter document access by tenant
+- Document retrieval also filters by tenant
+- Upload type and size are validated
+- Passwords use PBKDF2-SHA256 with 600,000 iterations
+- Administrator APIs require the administrator role
+- Security headers are added to every response
+- API documentation is disabled in production
+- `JWT_SECRET` must contain at least 32 characters
 
-Vector-only retrieval does not always perform well for exact technical terms or identifiers. Knowly combines BM25 keyword retrieval with vector similarity and applies Cohere reranking to improve result quality.
+## Testing
 
-### Non-blocking document processing
+```powershell
+cd backend
+pytest
+```
 
-Text extraction and indexing can take longer than an API request should allow. Celery and Redis move these operations into asynchronous background tasks.
+GitHub Actions runs backend tests and validates the Next.js production build.
 
-### Secure information boundaries
+## Production checklist
 
-Enterprise knowledge requires strong tenant isolation. Knowly validates tenant permissions throughout document access and retrieval rather than applying isolation only at the frontend."
+- Replace all default credentials and secrets
+- Configure HTTPS and terminate TLS at a managed proxy or load balancer
+- Use managed PostgreSQL, Redis, object storage, and secrets
+- Configure production CORS origins explicitly
+- Set `OPENAI_API_KEY` and `COHERE_API_KEY` for hosted generation and reranking
+- Run workers from a durable queue for large documents
+- Add rate limiting and centralized structured logging
+- Add malware scanning and MIME/content inspection before indexing
+- Back up PostgreSQL and uploaded files
+- Add external monitoring and alerting

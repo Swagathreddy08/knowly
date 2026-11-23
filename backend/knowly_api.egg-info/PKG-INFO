@@ -1,0 +1,20 @@
+Metadata-Version: 2.4
+Name: knowly-api
+Version: 1.0.0
+Summary: Enterprise AI knowledge assistant API
+Requires-Python: >=3.11
+Requires-Dist: fastapi<1,>=0.115
+Requires-Dist: uvicorn[standard]<1,>=0.32
+Requires-Dist: sqlalchemy<3,>=2.0
+Requires-Dist: pydantic-settings<3,>=2.6
+Requires-Dist: python-jose[cryptography]<4,>=3.3
+Requires-Dist: passlib[bcrypt]<2,>=1.7
+Requires-Dist: python-multipart<1,>=0.0.17
+Requires-Dist: httpx<1,>=0.28
+Requires-Dist: email-validator<3,>=2.2
+Requires-Dist: python-docx<2,>=1.1
+Requires-Dist: pypdf<6,>=5.1
+Requires-Dist: psycopg[binary]<4,>=3.2
+Provides-Extra: test
+Requires-Dist: pytest<9,>=8; extra == "test"
+Requires-Dist: pytest-cov<7,>=6; extra == "test"
