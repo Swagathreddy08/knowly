@@ -11,7 +11,11 @@ def tokenize(text: str) -> list[str]:
     return re.findall(r"[a-z0-9]+", text.lower())
 
 
-def retrieve_chunks(chunks: list[DocumentChunk], query: str, limit: int) -> list[tuple[DocumentChunk, float]]:
+def retrieve_chunks(
+    chunks: list[DocumentChunk],
+    query: str,
+    limit: int,
+) -> list[tuple[DocumentChunk, float]]:
     query_terms = set(tokenize(query))
     scored: list[tuple[DocumentChunk, float]] = []
 
@@ -23,7 +27,10 @@ def retrieve_chunks(chunks: list[DocumentChunk], query: str, limit: int) -> list
         if not frequencies:
             score = 0.0
         else:
-            score = sum((1.0 + math.log(count)) * (1.0 / math.sqrt(len(terms))) for count in frequencies.values())
+            score = sum(
+                (1.0 + math.log(count)) * (1.0 / math.sqrt(len(terms)))
+                for count in frequencies.values()
+            )
         if score > 0:
             scored.append((chunk, score))
 
@@ -32,7 +39,10 @@ def retrieve_chunks(chunks: list[DocumentChunk], query: str, limit: int) -> list
     return rerank(query, candidates)[:limit]
 
 
-def rerank(query: str, candidates: list[tuple[DocumentChunk, float]]) -> list[tuple[DocumentChunk, float]]:
+def rerank(
+    query: str,
+    candidates: list[tuple[DocumentChunk, float]],
+) -> list[tuple[DocumentChunk, float]]:
     if not settings.cohere_api_key:
         return candidates
 
@@ -50,7 +60,11 @@ def rerank(query: str, candidates: list[tuple[DocumentChunk, float]]) -> list[tu
         )
         response.raise_for_status()
         ranking = response.json()["results"]
-        return [(candidates[item["index"]][0], float(item["relevance_score"])) for item in ranking]
+        reranked = []
+        for item in ranking:
+            chunk, _ = candidates[item["index"]]
+            reranked.append((chunk, float(item["relevance_score"])))
+        return reranked
     except (httpx.HTTPError, KeyError, ValueError, IndexError):
         return candidates
 
@@ -61,7 +75,7 @@ def grounded_answer(query: str, results: list[tuple[DocumentChunk, float]]) -> s
 
     if settings.openai_api_key:
         context = "\n\n".join(
-            f"[Document {index + 1}: {chunk.document.filename}]\\n{chunk.content}"
+            f"[Document {index + 1}: {chunk.document.filename}]\n{chunk.content}"
             for index, (chunk, _) in enumerate(results)
         )
         try:

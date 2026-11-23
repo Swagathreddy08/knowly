@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const TOKEN_KEY = "knowly_token";
 
 type DocumentItem = {
   id: string;
@@ -29,23 +30,28 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    setToken(localStorage.getItem("knowly_token") || "");
+    setToken(localStorage.getItem(TOKEN_KEY) || "");
   }, []);
 
   useEffect(() => {
     if (!token) return;
-    const load = async () => {
+
+    async function loadDocuments() {
       const response = await fetch(`${API_URL}/documents`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (response.ok) setDocuments(await response.json());
-    };
-    load();
+      if (response.ok) {
+        setDocuments(await response.json());
+      }
+    }
+
+    void loadDocuments();
   }, [token]);
 
   async function register(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
+
     const data = new FormData(event.currentTarget);
     const response = await fetch(`${API_URL}/auth/register`, {
       method: "POST",
@@ -57,11 +63,13 @@ export default function Home() {
       }),
     });
     const body = await response.json();
+
     if (!response.ok) {
       setError(body.detail || "Registration failed");
       return;
     }
-    localStorage.setItem("knowly_token", body.access_token);
+
+    localStorage.setItem(TOKEN_KEY, body.access_token);
     setToken(body.access_token);
   }
 
@@ -107,7 +115,7 @@ export default function Home() {
   }
 
   function logout() {
-    localStorage.removeItem("knowly_token");
+    localStorage.removeItem(TOKEN_KEY);
     setToken("");
   }
 

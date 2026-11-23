@@ -1,8 +1,17 @@
+from contextlib import asynccontextmanager
 from pathlib import Path
 from uuid import uuid4
-from contextlib import asynccontextmanager
 
-from fastapi import BackgroundTasks, Depends, FastAPI, File, HTTPException, Request, UploadFile, status
+from fastapi import (
+    BackgroundTasks,
+    Depends,
+    FastAPI,
+    File,
+    HTTPException,
+    Request,
+    UploadFile,
+    status,
+)
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy import select
@@ -27,7 +36,7 @@ from .security import create_access_token, get_current_user, hash_password, requ
 
 @asynccontextmanager
 async def lifespan(application: FastAPI):
-    del application
+    del application  # Database setup is intentionally driven by application startup.
     init_db()
     yield
 
@@ -120,14 +129,19 @@ def process_document(document_id: str) -> None:
         document = db.get(Document, document_id)
         if not document:
             return
+
         document.status = DocumentStatus.processing
         document.error = None
         db.commit()
 
-        text = extract_text(Path(document.storage_path), document.content_type, document.filename)
-        chunks = chunk_text(text)
+        extracted = extract_text(
+            Path(document.storage_path),
+            document.content_type,
+            document.filename,
+        )
+        chunks = chunk_text(extracted)
         if not chunks:
-            raise ValueError("The document contained no extractable text")
+            raise ValueError("No readable text was found in this document")
 
         db.query(DocumentChunk).filter(
             DocumentChunk.document_id == document.id,
