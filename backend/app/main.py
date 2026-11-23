@@ -1,5 +1,6 @@
 from pathlib import Path
 from uuid import uuid4
+from contextlib import asynccontextmanager
 
 from fastapi import BackgroundTasks, Depends, FastAPI, File, HTTPException, Request, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -24,11 +25,19 @@ from .schemas import (
 from .security import create_access_token, get_current_user, hash_password, require_admin, verify_password
 
 
+@asynccontextmanager
+async def lifespan(application: FastAPI):
+    del application
+    init_db()
+    yield
+
+
 app = FastAPI(
     title="Knowly API",
     version="1.0.0",
     docs_url="/docs" if settings.app_env != "production" else None,
     redoc_url=None,
+    lifespan=lifespan,
 )
 
 app.add_middleware(
@@ -50,11 +59,6 @@ async def security_headers(request: Request, call_next):
     if settings.app_env == "production":
         response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     return response
-
-
-@app.on_event("startup")
-def startup() -> None:
-    init_db()
 
 
 @app.exception_handler(HTTPException)
